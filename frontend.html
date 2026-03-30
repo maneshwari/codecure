@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeCure — Drug Toxicity Predictor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222536;
+    --border: #2e3150;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+  header { border-bottom: 1px solid var(--border); padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; }
+  header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+  header span { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .hero { text-align: center; padding: 3rem 0 2rem; }
+  .hero h2 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, #e2e8f0, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); margin-top: 0.75rem; font-size: 1rem; }
+  .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin: 2rem 0; }
+  .input-card label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+  .input-row { display: flex; gap: 1rem; }
+  .input-row input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1.2rem; color: var(--text); font-size: 0.95rem; font-family: 'JetBrains Mono', monospace; outline: none; transition: border-color 0.2s; }
+  .input-row input:focus { border-color: var(--accent); }
+  .input-row input::placeholder { color: var(--muted); }
+  .btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 0.9rem 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; white-space: nowrap; }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .examples { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .example-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.3rem 0.9rem; font-size: 0.78rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .example-chip:hover { border-color: var(--accent); color: var(--accent2); }
+  .results { display: none; }
+  .results.show { display: block; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+  .summary-card .label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .summary-card .value { font-size: 2rem; font-weight: 800; margin-top: 0.4rem; letter-spacing: -0.02em; }
+  .summary-card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .risk-low { color: var(--green); }
+  .risk-med { color: var(--yellow); }
+  .risk-high { color: var(--red); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+  .card h3 { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+  .target-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .target-name { font-size: 0.82rem; font-weight: 600; width: 120px; flex-shrink: 0; }
+  .bar-bg { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .target-val { font-size: 0.8rem; font-weight: 700; width: 45px; text-align: right; flex-shrink: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.7rem; border-radius: 20px; }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .high-risk-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .spinner { display: none; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  .spinner.show { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); border-radius: 10px; padding: 1rem; margin-top: 1rem; display: none; }
+  .error-msg.show { display: block; }
+  .smiles-display { font-family: monospace; font-size: 0.85rem; color: var(--accent2); background: var(--surface2); padding: 0.5rem 0.9rem; border-radius: 8px; margin-bottom: 1.5rem; word-break: break-all; }
+  canvas { max-height: 280px; }
+  @media (max-width: 700px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .input-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">CC</div>
+  <h1>CodeCure</h1>
+  <span>Drug Toxicity Prediction · Tox21 · XGBoost</span>
+</header>
+
+<div class="container">
+  <div class="hero">
+    <h2>Predict Drug Toxicity from SMILES</h2>
+    <p>Enter a molecular SMILES string to predict toxicity across 12 biological targets</p>
+  </div>
+
+  <div class="input-card">
+    <label>Molecular SMILES String</label>
+    <div class="input-row">
+      <input type="text" id="smilesInput" placeholder="e.g. CC(=O)OC1=CC=CC=C1C(=O)O" />
+      <button class="btn" id="predictBtn" onclick="predict()">
+        <span id="btnText">Analyze</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+    </div>
+    <div class="examples">
+      <span style="font-size:0.78rem;color:var(--muted);padding:0.3rem 0;">Try:</span>
+      <div class="example-chip" onclick="setSmiles('CC(=O)OC1=CC=CC=C1C(=O)O')">Aspirin</div>
+      <div class="example-chip" onclick="setSmiles('CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C')">Testosterone</div>
+      <div class="example-chip" onclick="setSmiles('OCC')">Ethanol</div>
+      <div class="example-chip" onclick="setSmiles('C=CCl')">Allyl Chloride</div>
+      <div class="example-chip" onclick="setSmiles('c1ccc2c(c1)cc1ccc3cccc4ccc2c1c34')">Pyrene</div>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="smiles-display" id="smilesDisplay"></div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">Overall Risk Score</div>
+        <div class="value" id="riskScore">—</div>
+        <div class="sub" id="riskLabel">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">High Risk Targets</div>
+        <div class="value" id="highRiskCount">—</div>
+        <div class="sub">out of 12 targets</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Verdict</div>
+        <div class="value" id="verdictIcon" style="font-size:1.5rem;">—</div>
+        <div class="sub" id="verdictText">—</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3>Per-Target Probabilities</h3>
+        <div id="targetBars"></div>
+      </div>
+      <div class="card">
+        <h3>Risk Distribution</h3>
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem;">
+      <h3>High Risk Targets</h3>
+      <div class="high-risk-list" id="highRiskList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8080';
+let radarChart = null;
+
+function setSmiles(s) {
+  document.getElementById('smilesInput').value = s;
+  predict();
+}
+
+function getRiskColor(p) {
+  if (p < 0.3) return 'var(--green)';
+  if (p < 0.6) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function getRiskClass(score) {
+  if (score < 0.3) return 'risk-low';
+  if (score < 0.6) return 'risk-med';
+  return 'risk-high';
+}
+
+async function predict() {
+  const smiles = document.getElementById('smilesInput').value.trim();
+  if (!smiles) return;
+
+  const btn = document.getElementById('predictBtn');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btnText');
+  const errorMsg = document.getElementById('errorMsg');
+
+  btn.disabled = true;
+  spinner.classList.add('show');
+  btnText.textContent = 'Analyzing';
+  errorMsg.classList.remove('show');
+
+  try {
+    const res = await fetch(`${API}/predict`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({smiles})
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      errorMsg.textContent = 'Invalid SMILES: ' + data.error;
+      errorMsg.classList.add('show');
+      return;
+    }
+
+    renderResults(data);
+  } catch(e) {
+    errorMsg.textContent = 'Cannot reach API. Make sure Flask is running on port 8080.';
+    errorMsg.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('show');
+    btnText.textContent = 'Analyze';
+  }
+}
+
+function renderResults(data) {
+  document.getElementById('results').classList.add('show');
+  document.getElementById('smilesDisplay').textContent = '⬡ ' + data.smiles;
+
+  const score = data.overall_risk_score;
+  const scoreEl = document.getElementById('riskScore');
+  scoreEl.textContent = (score * 100).toFixed(1) + '%';
+  scoreEl.className = 'value ' + getRiskClass(score);
+
+  const labels = {low:'Low Risk',med:'Moderate Risk',high:'High Risk'};
+  const lk = score < 0.3 ? 'low' : score < 0.6 ? 'med' : 'high';
+  document.getElementById('riskLabel').textContent = labels[lk];
+
+  const hrc = data.high_risk_targets.length;
+  document.getElementById('highRiskCount').textContent = hrc;
+  document.getElementById('highRiskCount').className = 'value ' + getRiskClass(hrc / 12);
+
+  const verdicts = [
+    {max:2, icon:'✅', text:'Likely Safe', cls:'risk-low'},
+    {max:6, icon:'⚠️', text:'Moderate Concern', cls:'risk-med'},
+    {max:99, icon:'🚨', text:'High Toxicity Risk', cls:'risk-high'}
+  ];
+  const v = verdicts.find(x => hrc <= x.max);
+  document.getElementById('verdictIcon').textContent = v.icon;
+  document.getElementById('verdictText').textContent = v.text;
+  document.getElementById('verdictText').className = 'sub ' + v.cls;
+
+  // Target bars
+  const barsEl = document.getElementById('targetBars');
+  barsEl.innerHTML = '';
+  Object.entries(data.predictions).forEach(([target, prob]) => {
+    const pct = (prob * 100).toFixed(1);
+    const color = getRiskColor(prob);
+    barsEl.innerHTML += `
+      <div class="target-row">
+        <div class="target-name">${target}</div>
+        <div class="bar-bg">
+          <div class="bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="target-val" style="color:${color}">${pct}%</div>
+      </div>`;
+  });
+
+  // Radar chart
+  if (radarChart) radarChart.destroy();
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  const targets = Object.keys(data.predictions);
+  const values = Object.values(data.predictions).map(v => +(v*100).toFixed(1));
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: targets,
+      datasets: [{
+        label: 'Toxicity Probability (%)',
+        data: values,
+        fill: true,
+        backgroundColor: 'rgba(99,102,241,0.15)',
+        borderColor: 'rgba(99,102,241,0.8)',
+        pointBackgroundColor: values.map(v => v > 60 ? '#ef4444' : v > 30 ? '#f59e0b' : '#22c55e'),
+        pointRadius: 4
+      }]
+    },
+    options: {
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { color: '#94a3b8', font: {size: 9}, stepSize: 25 },
+          grid: { color: '#2e3150' },
+          pointLabels: { color: '#94a3b8', font: {size: 9} },
+          angleLines: { color: '#2e3150' }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // High risk badges
+  const hrList = document.getElementById('highRiskList');
+  hrList.innerHTML = '';
+  if (data.high_risk_targets.length === 0) {
+    hrList.innerHTML = '<span class="badge badge-green">✓ No high risk targets detected</span>';
+  } else {
+    data.high_risk_targets.forEach(t => {
+      const prob = data.predictions[t];
+      hrList.innerHTML += `<span class="badge badge-red">⚠ ${t} (${(prob*100).toFixed(1)}%)</span>`;
+    });
+  }
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+document.getElementById('smilesInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') predict();
+});
+</script>
+</body>
+</html>
