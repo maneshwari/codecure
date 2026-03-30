@@ -7,6 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Dark theme (default) */
   :root {
     --bg: #0f1117;
     --surface: #1a1d27;
@@ -19,15 +21,55 @@
     --red: #ef4444;
     --text: #e2e8f0;
     --muted: #94a3b8;
+    --toggle-bg: #222536;
+    --toggle-border: #2e3150;
+    --toggle-icon: '☀️';
   }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+  /* Light theme */
+  body.light {
+    --bg: #f8f9fc;
+    --surface: #ffffff;
+    --surface2: #f1f3f9;
+    --border: #d1d5e0;
+    --accent: #6366f1;
+    --accent2: #4f52cc;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --text: #0f1117;
+    --muted: #64748b;
+    --toggle-bg: #e2e8f0;
+    --toggle-border: #cbd5e1;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; transition: background 0.2s, color 0.2s; }
+
+  /* Toggle button */
+  #theme-toggle {
+    margin-left: auto;
+    background: var(--toggle-bg);
+    border: 1px solid var(--toggle-border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
   header { border-bottom: 1px solid var(--border); padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
-  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; }
+  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; color: white; flex-shrink: 0; }
   header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
-  header span { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+  header span { color: var(--muted); font-size: 0.85rem; }
   .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
   .hero { text-align: center; padding: 3rem 0 2rem; }
-  .hero h2 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, #e2e8f0, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero h2 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--text), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .hero p { color: var(--muted); margin-top: 0.75rem; font-size: 1rem; }
   .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin: 2rem 0; }
   .input-card label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
@@ -83,6 +125,10 @@
   <div class="logo">CC</div>
   <h1>CodeCure</h1>
   <span>Drug Toxicity Prediction · Tox21 · XGBoost</span>
+  <button id="theme-toggle" onclick="toggleTheme()">
+    <span id="toggle-icon">☀️</span>
+    <span id="toggle-label">Light</span>
+  </button>
 </header>
 
 <div class="container">
@@ -153,6 +199,32 @@
 <script>
 const API = 'http://localhost:8080';
 let radarChart = null;
+
+// Theme toggle
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('toggle-icon').textContent = isLight ? '🌙' : '☀️';
+  document.getElementById('toggle-label').textContent = isLight ? 'Dark' : 'Light';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  if (radarChart) updateChartTheme(isLight);
+}
+
+// Restore saved preference on load
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('toggle-icon').textContent = '🌙';
+  document.getElementById('toggle-label').textContent = 'Dark';
+}
+
+function updateChartTheme(isLight) {
+  const gridColor = isLight ? '#d1d5e0' : '#2e3150';
+  const labelColor = isLight ? '#64748b' : '#94a3b8';
+  radarChart.options.scales.r.grid.color = gridColor;
+  radarChart.options.scales.r.angleLines.color = gridColor;
+  radarChart.options.scales.r.ticks.color = labelColor;
+  radarChart.options.scales.r.pointLabels.color = labelColor;
+  radarChart.update();
+}
 
 function setSmiles(s) {
   document.getElementById('smilesInput').value = s;
@@ -255,6 +327,9 @@ function renderResults(data) {
 
   // Radar chart
   if (radarChart) radarChart.destroy();
+  const isLight = document.body.classList.contains('light');
+  const gridColor = isLight ? '#d1d5e0' : '#2e3150';
+  const labelColor = isLight ? '#64748b' : '#94a3b8';
   const ctx = document.getElementById('radarChart').getContext('2d');
   const targets = Object.keys(data.predictions);
   const values = Object.values(data.predictions).map(v => +(v*100).toFixed(1));
@@ -276,15 +351,17 @@ function renderResults(data) {
       scales: {
         r: {
           min: 0, max: 100,
-          ticks: { color: '#94a3b8', font: {size: 9}, stepSize: 25 },
-          grid: { color: '#2e3150' },
-          pointLabels: { color: '#94a3b8', font: {size: 9} },
-          angleLines: { color: '#2e3150' }
+          ticks: { color: labelColor, font: {size: 9}, stepSize: 25 },
+          grid: { color: gridColor },
+          pointLabels: { color: labelColor, font: {size: 9} },
+          angleLines: { color: gridColor }
         }
       },
       plugins: { legend: { display: false } }
     }
   });
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
 
   // High risk badges
   const hrList = document.getElementById('highRiskList');
@@ -297,8 +374,6 @@ function renderResults(data) {
       hrList.innerHTML += `<span class="badge badge-red">⚠ ${t} (${(prob*100).toFixed(1)}%)</span>`;
     });
   }
-
-  document.getElementById('results').scrollIntoView({behavior:'smooth'});
 }
 
 document.getElementById('smilesInput').addEventListener('keydown', e => {
